@@ -1,0 +1,1949 @@
+{
+  "name": "Centro de Comando AlmaAlquiler - Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -992,
+        16
+      ],
+      "id": "d62a14ba-3ac9-4292-9ec2-65ee01cf4fa1",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Qdjh6rfqtEDq0ool",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sos un asistente que clasifica consultas de huéspedes para un alquiler temporário en Patagonia (AlmaAlquiler). Analizá el siguiente mensaje y devolvé SOLO un JSON válido, sin texto adicional, con esta estructura exacta:\n{ \"nombre\": \"nombre del remitente\", \"perfil_estadia\": \"Corto Plazo o Largo Plazo\", \"prioridad\": \"Alta o Baja\", \"resumen\": \"nota interna breve para el dueño, describiendo la consulta y qué se va a responder\", \"respuesta_sugerida\": \"mensaje completo, redactado en primera persona como AlmaAlquiler, listo para enviarle directamente al huésped. Usar el nombre con el que la persona firma el mensaje (no el nombre del remitente del email si difiere). Como AlmaAlquiler es una única propiedad (no hay varias opciones para elegir), el mensaje debe confirmar disponibilidad de la propiedad y ofrecer enviar el detalle y plan de tarifas. No usar frases como 'opciones', 'elegir' ni sugerir que hay varias propiedades. Estructurar el mensaje en 3 párrafos separados con saltos de línea dobles (\\n\\n): un párrafo de saludo breve, un párrafo con el cuerpo de la respuesta, y un párrafo final de despedida. Con tono cálido y profesional, pidiendo más datos si hace falta\" }\nReglas: estadías de 14 noches o más son Largo Plazo con Prioridad Alta. Estadías menores a 14 noches son Corto Plazo con Prioridad Baja.\nRemitente: {{ $json.From }}\nAsunto: {{ $json.Subject }}\nMensaje: {{ $json.snippet }}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -544,
+        0
+      ],
+      "id": "94a468b0-538d-4975-ac89-002b45b8af7a",
+      "name": "Basic LLM Chain",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        -576,
+        208
+      ],
+      "id": "4454fe48-6bc9-4882-bb63-50b57a1a25fa",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "SlwJ1M9v8m2bMU0x",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"nombre\": \"Juan Pérez\",\n  \"perfil_estadia\": \"Largo Plazo\",\n  \"prioridad\": \"Alta\",\n  \"resumen\": \"Consulta por estadía de 2 meses. Confirmar disponibilidad y enviar tarifas de largo plazo.\",\n  \"respuesta_sugerida\": \"Hola Juan, ¡gracias por escribirnos! Sí, tenemos disponibilidad para una estadía de 2 meses. El departamento viene completamente amoblado, con wifi de alta velocidad y espacio de trabajo ergonómico, ideal para quienes trabajan remoto. Te cuento que para estadías de ese tramo aplicamos una tarifa preferencial. ¿Me confirmás la fecha exacta de check-in para pasarte el presupuesto detallado? Saludos, AlmaAlquiler\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -400,
+        224
+      ],
+      "id": "24c5bc99-7db5-497a-8eb4-065c3265e8c2",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblYNEC6vEG4Z7YJM",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tblYNEC6vEG4Z7YJM"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.output.nombre }}",
+            "Mail": "={{ $('Gmail Trigger').itemMatching($itemIndex).json.From.match(/<(.+)>/)[1] }}",
+            "Telefono_WhatsApp": "=",
+            "Estado": "Procesado por IA",
+            "Mensaje_Original": "={{ $('Gmail Trigger').itemMatching($itemIndex).json.snippet }}",
+            "Perfil_Estadia": "={{ $json.output.perfil_estadia }}",
+            "Prioridad": "={{ $json.output.prioridad }}",
+            "Resumen_IA": "={{ $json.output.resumen }}",
+            "Canal_Origen": "Web",
+            "Registro Contactos": "=",
+            "Registro_Errores": "="
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Mail",
+              "displayName": "Mail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Telefono_WhatsApp",
+              "displayName": "Telefono_WhatsApp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Canal_Origen",
+              "displayName": "Canal_Origen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Airbnb",
+                  "value": "Airbnb"
+                },
+                {
+                  "name": "Booking",
+                  "value": "Booking"
+                },
+                {
+                  "name": "Instagram",
+                  "value": "Instagram"
+                },
+                {
+                  "name": "Web",
+                  "value": "Web"
+                },
+                {
+                  "name": "Referido",
+                  "value": "Referido"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Mensaje_Original",
+              "displayName": "Mensaje_Original",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Perfil_Estadia",
+              "displayName": "Perfil_Estadia",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Corto Plazo",
+                  "value": "Corto Plazo"
+                },
+                {
+                  "name": "Largo Plazo",
+                  "value": "Largo Plazo"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prioridad",
+              "displayName": "Prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Alta",
+                  "value": "Alta"
+                },
+                {
+                  "name": "Baja",
+                  "value": "Baja"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resumen_IA",
+              "displayName": "Resumen_IA",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Pendiente",
+                  "value": "Pendiente"
+                },
+                {
+                  "name": "Procesado por IA",
+                  "value": "Procesado por IA"
+                },
+                {
+                  "name": "Aprobado por humano",
+                  "value": "Aprobado por humano"
+                },
+                {
+                  "name": "Conctactado",
+                  "value": "Conctactado"
+                },
+                {
+                  "name": "Descartado",
+                  "value": "Descartado"
+                },
+                {
+                  "name": "Error",
+                  "value": "Error"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Registro Contactos",
+              "displayName": "Registro Contactos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Registro_Errores",
+              "displayName": "Registro_Errores",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -208,
+        0
+      ],
+      "id": "c42bfe1c-025e-4429-b425-32f376959894",
+      "name": "Create a record",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "elisabethelfi@gmail.com",
+        "subject": "= Aprobar contacto - Nuevo lead {{ $json.fields.Name }}",
+        "message": "=Nuevo lead clasificado:\\n\\nNombre: {{ $json.fields.Name }}\\nMail: {{ $json.fields.Mail }}\\nPerfil: {{ $json.fields.Perfil_Estadia }}\\nPrioridad: {{ $json.fields.Prioridad }}\\n\\nResumen y sugerencia de respuesta:\\n{{ $json.fields.Resumen_IA }}\\n\\n¿Apruebo el envío de la respuesta a este huésped?",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "62c2b498-fbcb-4f85-8b43-009e28b78664",
+      "name": "Send message and wait for response",
+      "webhookId": "c74501c2-b6b3-4457-88fe-940ea1fcfb86",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Qdjh6rfqtEDq0ool",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a76bbd85-1c72-4d08-a0aa-e3f149a0a9e5",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b6171273-9fc3-4259-a97d-b8399aa599ce",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "= {{ $('Create a record').item.json.fields.Mail }}",
+        "subject": "=Re: consulta de disponibilidad - AlmaAlquiler",
+        "emailType": "text",
+        "message": "={{ $('Basic LLM Chain').itemMatching($itemIndex).json.output.respuesta_sugerida }}\n\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        -112
+      ],
+      "id": "05cf5b6b-3e4a-4fd3-bd42-f3bbd68a4e15",
+      "name": "Send a message",
+      "webhookId": "722fa431-654a-4d54-bff8-9f8537839e99",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Qdjh6rfqtEDq0ool",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblYNEC6vEG4Z7YJM",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tblYNEC6vEG4Z7YJM"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Create a record').item.json.id }}",
+            "Estado": "Conctactado"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Mail",
+              "displayName": "Mail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Telefono_WhatsApp",
+              "displayName": "Telefono_WhatsApp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Canal_Origen",
+              "displayName": "Canal_Origen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Airbnb",
+                  "value": "Airbnb"
+                },
+                {
+                  "name": "Booking",
+                  "value": "Booking"
+                },
+                {
+                  "name": "Instagram",
+                  "value": "Instagram"
+                },
+                {
+                  "name": "Web",
+                  "value": "Web"
+                },
+                {
+                  "name": "Referido",
+                  "value": "Referido"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Mensaje_Original",
+              "displayName": "Mensaje_Original",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Perfil_Estadia",
+              "displayName": "Perfil_Estadia",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Corto Plazo",
+                  "value": "Corto Plazo"
+                },
+                {
+                  "name": "Largo Plazo",
+                  "value": "Largo Plazo"
+                },
+                {
+                  "name": "No aplica",
+                  "value": "No aplica"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prioridad",
+              "displayName": "Prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Alta",
+                  "value": "Alta"
+                },
+                {
+                  "name": "Baja",
+                  "value": "Baja"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resumen_IA",
+              "displayName": "Resumen_IA",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Pendiente",
+                  "value": "Pendiente"
+                },
+                {
+                  "name": "Procesado por IA",
+                  "value": "Procesado por IA"
+                },
+                {
+                  "name": "Aprobado por humano",
+                  "value": "Aprobado por humano"
+                },
+                {
+                  "name": "Conctactado",
+                  "value": "Conctactado"
+                },
+                {
+                  "name": "Descartado",
+                  "value": "Descartado"
+                },
+                {
+                  "name": "Error",
+                  "value": "Error"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Registro Contactos",
+              "displayName": "Registro Contactos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Registro_Errores",
+              "displayName": "Registro_Errores",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        -112
+      ],
+      "id": "35a30bb4-cb16-43d8-8c57-a729360185ab",
+      "name": "Create or update a record",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblykCSZPKhSdn75Y",
+          "mode": "list",
+          "cachedResultName": "Registro Contactos",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tblykCSZPKhSdn75Y"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead": "={{ [$('Create a record').item.json.id] }}",
+            "Fecha_Envio": "={{ $now }}",
+            "Asunto": "=Re: consulta de disponibilidad - AlmaAlquiler",
+            "Cuerpo_Enviado": "={{ $('Create a record').item.json.fields.Resumen_IA }}",
+            "Thread_ID": "={{ $('Gmail Trigger').item.json.threadId }}",
+            "Resultado_Envio": "Enviado ",
+            "Name": "={{ $('Create a record').item.json.fields.Name }} - {{ $now.format('dd/MM/yyyy') }}",
+            "id": "={{ $('Create a record').item.json.id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lead",
+              "displayName": "Lead",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha_Envio",
+              "displayName": "Fecha_Envio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Asunto",
+              "displayName": "Asunto",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Cuerpo_Enviado",
+              "displayName": "Cuerpo_Enviado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Thread_ID",
+              "displayName": "Thread_ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resultado_Envio",
+              "displayName": "Resultado_Envio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Enviado ",
+                  "value": "Enviado "
+                },
+                {
+                  "name": "Fallido",
+                  "value": "Fallido"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        -112
+      ],
+      "id": "b7a2bd2f-a7f3-4a6d-82ba-18596d932d52",
+      "name": "Create or update a record1",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblYNEC6vEG4Z7YJM",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tblYNEC6vEG4Z7YJM"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Create a record').item.json.id }}",
+            "Estado": "Descartado"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Mail",
+              "displayName": "Mail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Telefono_WhatsApp",
+              "displayName": "Telefono_WhatsApp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Canal_Origen",
+              "displayName": "Canal_Origen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Airbnb",
+                  "value": "Airbnb"
+                },
+                {
+                  "name": "Booking",
+                  "value": "Booking"
+                },
+                {
+                  "name": "Instagram",
+                  "value": "Instagram"
+                },
+                {
+                  "name": "Web",
+                  "value": "Web"
+                },
+                {
+                  "name": "Referido",
+                  "value": "Referido"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Mensaje_Original",
+              "displayName": "Mensaje_Original",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Perfil_Estadia",
+              "displayName": "Perfil_Estadia",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Corto Plazo",
+                  "value": "Corto Plazo"
+                },
+                {
+                  "name": "Largo Plazo",
+                  "value": "Largo Plazo"
+                },
+                {
+                  "name": "No aplica",
+                  "value": "No aplica"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prioridad",
+              "displayName": "Prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Alta",
+                  "value": "Alta"
+                },
+                {
+                  "name": "Baja",
+                  "value": "Baja"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resumen_IA",
+              "displayName": "Resumen_IA",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Pendiente",
+                  "value": "Pendiente"
+                },
+                {
+                  "name": "Procesado por IA",
+                  "value": "Procesado por IA"
+                },
+                {
+                  "name": "Aprobado por humano",
+                  "value": "Aprobado por humano"
+                },
+                {
+                  "name": "Conctactado",
+                  "value": "Conctactado"
+                },
+                {
+                  "name": "Descartado",
+                  "value": "Descartado"
+                },
+                {
+                  "name": "Error",
+                  "value": "Error"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Registro Contactos",
+              "displayName": "Registro Contactos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Registro_Errores",
+              "displayName": "Registro_Errores",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        256
+      ],
+      "id": "4d27fd9a-0bc2-4d99-93ad-23f8b3276fb6",
+      "name": "Create or update a record2",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl630nP4luWYx7A9",
+          "mode": "list",
+          "cachedResultName": "Registro_Errores",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tbl630nP4luWYx7A9"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha": "={{ $now }}",
+            "Tipo_Error": "Fallo API IA",
+            "Detalle": "={{ $json.error.message }}",
+            "Nodo_n8n": "Basic LLM Chain",
+            "Estado": "Pendiente",
+            "Lead": "="
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lead",
+              "displayName": "Lead",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Tipo_Error",
+              "displayName": "Tipo_Error",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Fallo API IA",
+                  "value": "Fallo API IA"
+                },
+                {
+                  "name": "Dato faltante",
+                  "value": "Dato faltante"
+                },
+                {
+                  "name": " Fallo envío Gmail",
+                  "value": " Fallo envío Gmail"
+                },
+                {
+                  "name": "Otro",
+                  "value": "Otro"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Detalle",
+              "displayName": "Detalle",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Nodo_n8n",
+              "displayName": "Nodo_n8n",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Resuelto",
+                  "value": "Resuelto"
+                },
+                {
+                  "name": "Pendiente",
+                  "value": "Pendiente"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        144
+      ],
+      "id": "a5f06e77-ad5a-438d-ad1e-001f6d66f73a",
+      "name": "Create or update a record3",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl630nP4luWYx7A9",
+          "mode": "list",
+          "cachedResultName": "Registro_Errores",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tbl630nP4luWYx7A9"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead": "= {{ $('Create a record').item.json.id }}",
+            "Fecha": "={{ $now }}",
+            "Tipo_Error": " Fallo envío Gmail",
+            "Detalle": "={{ $json.error.message }}",
+            "Nodo_n8n": "Send a message",
+            "Estado": "Pendiente"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lead",
+              "displayName": "Lead",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Tipo_Error",
+              "displayName": "Tipo_Error",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Fallo API IA",
+                  "value": "Fallo API IA"
+                },
+                {
+                  "name": "Dato faltante",
+                  "value": "Dato faltante"
+                },
+                {
+                  "name": " Fallo envío Gmail",
+                  "value": " Fallo envío Gmail"
+                },
+                {
+                  "name": "Otro",
+                  "value": "Otro"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Detalle",
+              "displayName": "Detalle",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Nodo_n8n",
+              "displayName": "Nodo_n8n",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Resuelto",
+                  "value": "Resuelto"
+                },
+                {
+                  "name": "Pendiente",
+                  "value": "Pendiente"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        32
+      ],
+      "id": "d77726a3-6912-4504-93c8-620b5cac7520",
+      "name": "Create or update a record4",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblykCSZPKhSdn75Y",
+          "mode": "list",
+          "cachedResultName": "Registro Contactos",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tblykCSZPKhSdn75Y"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead": "={{ [$('Create a record').item.json.id] }}",
+            "Fecha_Envio": "={{ $now }}",
+            "Asunto": "=Re: consulta de disponibilidad - AlmaAlquiler",
+            "Cuerpo_Enviado": "={{ $('Create a record').item.json.fields.Resumen_IA }}",
+            "Thread_ID": "={{ $('Gmail Trigger').item.json.threadId }}",
+            "Resultado_Envio": "Enviado ",
+            "Name": "={{ $('Create a record').item.json.fields.Name }} - {{ $now.format('dd/MM/yyyy') }}",
+            "id": "={{ $('Create a record').item.json.id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lead",
+              "displayName": "Lead",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha_Envio",
+              "displayName": "Fecha_Envio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Asunto",
+              "displayName": "Asunto",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Cuerpo_Enviado",
+              "displayName": "Cuerpo_Enviado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Thread_ID",
+              "displayName": "Thread_ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resultado_Envio",
+              "displayName": "Resultado_Envio",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Enviado ",
+                  "value": "Enviado "
+                },
+                {
+                  "name": "Fallido",
+                  "value": "Fallido"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        240
+      ],
+      "id": "475a54e2-5d47-4a34-bf33-48b0fd254cec",
+      "name": "Create or update a record5",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0fcb19a6-7b41-4594-8ab3-fc2e41492b13",
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "linkedin.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "3ea9d8be-26db-4bf9-a815-6c4cf70f9103",
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "n8n.cloud",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "41c64bba-f724-434a-8265-3496834861b9",
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "anthropic.com",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -752,
+        16
+      ],
+      "id": "9b932194-27a3-4579-83cf-6bf3ca56155c",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appI0lFxso465VtAf",
+          "mode": "list",
+          "cachedResultName": "Centro de Comando AlmaAlquiler",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl630nP4luWYx7A9",
+          "mode": "list",
+          "cachedResultName": "Registro_Errores",
+          "cachedResultUrl": "https://airtable.com/appI0lFxso465VtAf/tbl630nP4luWYx7A9"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "=     {{ $now.format('dd/MM/yyyy HH:mm') }} - Error en clasificación IA",
+            "Nodo_n8n": "Basic LLM Chain",
+            "Estado": "Pendiente",
+            "Lead": "=",
+            "Tipo_Error": "Fallo API IA",
+            "Detalle": "={{ $json.error.message }}",
+            "Fecha": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Lead",
+              "displayName": "Lead",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Tipo_Error",
+              "displayName": "Tipo_Error",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Fallo API IA",
+                  "value": "Fallo API IA"
+                },
+                {
+                  "name": "Dato faltante",
+                  "value": "Dato faltante"
+                },
+                {
+                  "name": " Fallo envío Gmail",
+                  "value": " Fallo envío Gmail"
+                },
+                {
+                  "name": "Otro",
+                  "value": "Otro"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Detalle",
+              "displayName": "Detalle",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Nodo_n8n",
+              "displayName": "Nodo_n8n",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Resuelto",
+                  "value": "Resuelto"
+                },
+                {
+                  "name": "Pendiente",
+                  "value": "Pendiente"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -272,
+        400
+      ],
+      "id": "9e1acec1-c5cb-4229-b635-814105a7bf5f",
+      "name": "Create a record1",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "PuA47F9oqdsVXFNn",
+          "name": "Airtable account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create or update a record3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create or update a record2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create or update a record4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a record": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a record3": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or update a record2": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f1524c59-4f71-4b8b-9bb5-542ce7f35ba2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "484a2cc89f6684ca059abba556359c59663b1482aad541f9041aa7329da05064"
+  },
+  "nodeGroups": [],
+  "id": "uBAIyDR6WtAD3td1",
+  "tags": []
+}
